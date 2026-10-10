@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_saver/file_saver.dart';
 
-const String apiBaseUrl = 'http://127.0.0.1:8000';
+const String apiBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://127.0.0.1:8000',
+);
 
 void main() {
   runApp(const MyApp());
@@ -493,9 +496,10 @@ Widget _summaryCard(
       appBar: AppBar(
   title: const Row(
     children: [
-      Icon(
-        Icons.account_balance_wallet_outlined,
-        size: 26,
+      Image(
+        image: AssetImage('assets/app_logo.png'),
+        width: 30,
+        height: 30,
       ),
       SizedBox(width: 10),
       Text(

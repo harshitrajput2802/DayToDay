@@ -355,8 +355,6 @@ def soft_delete_transaction(
     transaction.IsDeleted = True
     db.commit()
 
-    db.refresh(transaction)
-
     return {
         "message": "Transaction moved to deleted records",
         "id": transaction.id,
