@@ -1,0 +1,225 @@
+# ============================================================
+
+# DAYTODAY - Git Ignore
+
+# ============================================================
+
+# ------------------------------------------------------------
+
+# Environment / Secrets
+
+# ------------------------------------------------------------
+
+.env
+.env.*
+!.env.example
+
+# ------------------------------------------------------------
+
+# Python
+
+# ------------------------------------------------------------
+
+**pycache**/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+
+.venv/
+venv/
+env/
+ENV/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ------------------------------------------------------------
+
+# FastAPI / Backend runtime files
+
+# ------------------------------------------------------------
+
+*.log
+logs/
+*.sqlite
+*.sqlite3
+*.db
+
+# Local uploads / generated storage
+
+uploads/
+storage/
+media/
+
+# ------------------------------------------------------------
+
+# PostgreSQL / Docker / MinIO local data
+
+# ------------------------------------------------------------
+
+postgres_data/
+minio_data/
+pgdata/
+docker-data/
+data/
+
+# Docker override files
+
+docker-compose.override.yml
+
+# ------------------------------------------------------------
+
+# Flutter / Dart
+
+# ------------------------------------------------------------
+
+frontend/.dart_tool/
+frontend/.packages
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.flutter_tool_state
+
+frontend/build/
+frontend/.pub-cache/
+
+# Flutter generated files
+
+frontend/android/.gradle/
+frontend/android/app/build/
+frontend/android/local.properties
+
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/ios/Flutter/ephemeral/
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/flutter_export_environment.sh
+
+frontend/macos/Pods/
+frontend/macos/Flutter/ephemeral/
+
+frontend/linux/flutter/ephemeral/
+frontend/windows/flutter/ephemeral/
+
+# ------------------------------------------------------------
+
+# IDE / Editor
+
+# ------------------------------------------------------------
+
+.vscode/
+.idea/
+*.iml
+
+# Visual Studio
+
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# ------------------------------------------------------------
+
+# OS files
+
+# ------------------------------------------------------------
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ------------------------------------------------------------
+
+# Temporary files
+
+# ------------------------------------------------------------
+
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------
+
+# Archives
+
+# ------------------------------------------------------------
+
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+# ------------------------------------------------------------
+
+# Generated Excel / Backup files
+
+# ------------------------------------------------------------
+
+*.xls
+*.xlsx
+*.csv
+
+# ------------------------------------------------------------
+
+# Certificates / Keys
+
+# ------------------------------------------------------------
+
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Android signing secrets
+
+key.properties
+
+# ------------------------------------------------------------
+
+# Generated APK / AAB
+
+# ------------------------------------------------------------
+
+*.apk
+*.aab
+
+# ------------------------------------------------------------
+
+# Coverage / test output
+
+# ------------------------------------------------------------
+
+coverage/
+test-results/
+
+# ------------------------------------------------------------
+
+# Local deployment files
+
+# ------------------------------------------------------------
+
+.render/
+.vercel/
+
+# ------------------------------------------------------------
+
+# Backup / temporary project copies
+
+# ------------------------------------------------------------
+
+*_backup*
+*_Backup*
+backup/
+backups/
+temp/
+tmp/
