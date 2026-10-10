@@ -5,7 +5,7 @@ import 'package:file_saver/file_saver.dart';
 
 const String apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://127.0.0.1:8000',
+  defaultValue: 'https://daytoday-5d2d.onrender.com',
 );
 
 void main() {
@@ -125,7 +125,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> fetchMessage() async {
     try {
-      final url = Uri.parse('http://127.0.0.1:8000/');
+      final url = Uri.parse('$apiBaseUrl/');
 
       final response = await http.get(url);
 
@@ -144,7 +144,7 @@ class _HomePageState extends State<HomePage> {
       print("API ERROR: $e");
 
       setState(() {
-        message = "Could not connect to backend";
+        message = "Backend unavailable. Check internet and try again.";
       });
     }
   }
@@ -418,10 +418,12 @@ Widget _summaryCard(
   String title,
   double amount,
   IconData icon,
-  Color accentColor,
-) {
+  Color accentColor, {
+  double? width,
+  bool compact = false,
+}) {
   return SizedBox(
-    width: 240,
+    width: width ?? 240,
     child: Card(
       color: Colors.white,
       elevation: 0,
@@ -433,49 +435,50 @@ Widget _summaryCard(
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                icon,
-                color: accentColor,
-                size: 25,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
+        padding: EdgeInsets.all(compact ? 7 : 18),
+        child: compact
+            ? Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF64748B),
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(children: [
+                    Icon(icon, color: accentColor, size: 14),
+                    const SizedBox(width: 3),
+                    Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w600))),
+                  ]),
+                  const SizedBox(height: 5),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(_formatAmount(amount), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _formatAmount(amount),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0F172A),
+                ],
+              )
+            : Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: accentColor.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: accentColor, size: 25),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 8),
+                        Text(_formatAmount(amount), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
       ),
     ),
   );
@@ -497,7 +500,7 @@ Widget _summaryCard(
   title: const Row(
     children: [
       Image(
-        image: AssetImage('assets/app_logo.png'),
+        image: AssetImage('assets/icon/DayToDay_Logo.png'),
         width: 30,
         height: 30,
       ),
@@ -525,17 +528,27 @@ Widget _summaryCard(
             // BACKEND MESSAGE
             // ------------------------------------------
 
-            Center(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
+            if (message != 'Hello Welcome')
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: message.startsWith('Backend unavailable')
+                      ? const Color(0xFFFFF1F2)
+                      : const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  message,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: message.startsWith('Backend unavailable')
+                        ? const Color(0xFFBE123C)
+                        : const Color(0xFF1D4ED8),
+                  ),
                 ),
               ),
-            ),
-
-            const SizedBox(height: 25),
 
             // ------------------------------------------
             // NEW and BACKUP buttons
@@ -577,7 +590,7 @@ Widget _summaryCard(
           ),
 
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 12),
 
             // ------------------------------------------
             // SEARCH BAR
@@ -622,31 +635,50 @@ Widget _summaryCard(
             ),*/
 
             
-            Wrap(
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 10,
-              runSpacing: 12,
-              children: [
-                const Text('From:'),
-
-                _buildDateField(
-                  date: fromDate,
-                  onPressed: selectFromDate,
-                ),
-
-                const Text('To:'),
-
-                _buildDateField(
-                  date: toDate,
-                  onPressed: selectToDate,
-                ),
-
-                ElevatedButton.icon(
-                  onPressed: () => fetchTransactions(searchByDate: true),
-                  icon: const Icon(Icons.search),
-                  label: const Text('Search'),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 600;
+                if (narrow) {
+                  return Column(
+                    children: [
+                      Row(children: [
+                        const SizedBox(width: 42, child: Text('From', style: TextStyle(fontSize: 12))),
+                        Expanded(child: _buildDateField(date: fromDate, onPressed: selectFromDate, compact: true)),
+                      ]),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        const SizedBox(width: 42, child: Text('To', style: TextStyle(fontSize: 12))),
+                        Expanded(child: _buildDateField(date: toDate, onPressed: selectToDate, compact: true)),
+                      ]),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => fetchTransactions(searchByDate: true),
+                          icon: const Icon(Icons.search),
+                          label: const Text('Apply date filter'),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+                return Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    const Text('From:'),
+                    _buildDateField(date: fromDate, onPressed: selectFromDate),
+                    const Text('To:'),
+                    _buildDateField(date: toDate, onPressed: selectToDate),
+                    ElevatedButton.icon(
+                      onPressed: () => fetchTransactions(searchByDate: true),
+                      icon: const Icon(Icons.search),
+                      label: const Text('Search'),
+                    ),
+                  ],
+                );
+              },
             ),
 
 
@@ -656,14 +688,22 @@ Widget _summaryCard(
             // INCOME / EXPENSE / BALANCE SUMMARY
             // Totals use the currently loaded records, so date search applies.
             // ------------------------------------------
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                _summaryCard('Total Income', totalIncome, Icons.trending_up, const Color(0xFF16A34A),),
-                _summaryCard('Total Expenses', totalExpenses, Icons.trending_down, const Color(0xFFDC2626),),
-                _summaryCard('Net Balance', netBalance, Icons.account_balance_wallet_outlined, const Color(0xFF2563EB),),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 600;
+                final cardWidth = narrow
+                    ? (constraints.maxWidth - 12) / 3
+                    : 240.0;
+                return Row(
+                  children: [
+                    Expanded(child: _summaryCard('Income', totalIncome, Icons.trending_up, const Color(0xFF16A34A), width: cardWidth, compact: narrow)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _summaryCard('Expenses', totalExpenses, Icons.trending_down, const Color(0xFFDC2626), width: cardWidth, compact: narrow)),
+                    const SizedBox(width: 6),
+                    Expanded(child: _summaryCard('Balance', netBalance, Icons.account_balance_wallet_outlined, const Color(0xFF2563EB), width: cardWidth, compact: narrow)),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 12),
@@ -806,20 +846,20 @@ DataRow(
   Widget _buildDateField({
     required DateTime date,
     required VoidCallback onPressed,
+    bool compact = false,
   }) {
     return SizedBox(
-      width: 185,
+      width: compact ? null : 185,
 
       child: InkWell(
         onTap: onPressed,
 
         child: InputDecorator(
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-
-            suffixIcon: Icon(
-              Icons.calendar_today,
-            ),
+          decoration: InputDecoration(
+            isDense: compact,
+            contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: compact ? 10 : 14),
+            border: const OutlineInputBorder(),
+            suffixIcon: const Icon(Icons.calendar_today, size: 18),
           ),
 
           child: Text(
@@ -857,7 +897,7 @@ Future<void> exportTransactionsToExcel() async {
     final filename = filenameMatch?.group(1) ??
         'Transactions_backup_till_${DateTime.now().toLocal().toString().replaceAll(':', '-').replaceAll(' ', '_').split('.').first}';
 
-    await FileSaver.instance.saveFile(
+    final savedPath = await FileSaver.instance.saveFile(
       name: filename.replaceAll(RegExp(r'\.xlsx$', caseSensitive: false), ''),
       bytes: response.bodyBytes,
       fileExtension: 'xlsx',
@@ -867,8 +907,13 @@ Future<void> exportTransactionsToExcel() async {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Excel backup exported successfully'),
+      SnackBar(
+        duration: const Duration(seconds: 6),
+        content: Text(
+          savedPath != null && savedPath.isNotEmpty
+              ? 'Excel backup saved: $savedPath'
+              : 'Backup request completed. Check Downloads or the save location selected by Android.',
+        ),
       ),
     );
   } catch (e, stackTrace) {
@@ -1511,21 +1556,6 @@ String formatApiDate(DateTime date) {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.end,
-                    children: [
-                      ElevatedButton(
-                        onPressed: saveTransaction,
-                        child: Text(isEditing ? 'Update' : 'Save'),
-                      ),
-                      OutlinedButton(
-                        onPressed: refreshForm,
-                        child: const Text('Refresh'),
-                      ),
-                    ],
-                  ),
                 ],
               );
 
@@ -1552,23 +1582,65 @@ String formatApiDate(DateTime date) {
                 ],
               );
 
+              final formActions = Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.end,
+                children: [
+                  FilledButton.icon(
+                    onPressed: saveTransaction,
+                    icon: Icon(isEditing ? Icons.save_outlined : Icons.check),
+                    label: Text(isEditing ? 'Update transaction' : 'Save transaction'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: refreshForm,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh'),
+                  ),
+                ],
+              );
+
               if (isNarrow) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    leftForm,
+                    _buildDateRow(label: 'Date', date: transactionDate, onPressed: selectTransactionDate),
+                    const SizedBox(height: 14),
+                    _buildDropdownRow(label: 'Category', value: selectedCategory, items: categories,
+                      onChanged: (value) => setState(() => selectedCategory = value)),
+                    const SizedBox(height: 14),
+                    _buildDropdownRow(label: 'Mode', value: selectedMode, items: modes,
+                      onChanged: (value) => setState(() => selectedMode = value)),
+                    const SizedBox(height: 14),
+                    _buildDropdownRow(label: 'Type', value: selectedType, items: types,
+                      onChanged: (value) => setState(() => selectedType = value)),
+                    const SizedBox(height: 14),
+                    _buildTextFieldRow(label: 'Description', controller: descriptionController),
+                    const SizedBox(height: 14),
+                    _buildTextFieldRow(label: 'Amount', controller: amountController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                    const SizedBox(height: 14),
+                    _buildTextFieldRow(label: 'Other', controller: otherController),
+                    const SizedBox(height: 14),
+                    _buildTextFieldRow(label: 'Remarks', controller: remarksController),
                     const SizedBox(height: 20),
-                    rightForm,
+                    formActions,
                   ],
                 );
               }
 
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              return Column(
                 children: [
-                  Expanded(child: leftForm),
-                  const SizedBox(width: 30),
-                  Expanded(child: rightForm),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: leftForm),
+                      const SizedBox(width: 30),
+                      Expanded(child: rightForm),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Align(alignment: Alignment.centerRight, child: formActions),
                 ],
               );
             },
@@ -1591,36 +1663,37 @@ String formatApiDate(DateTime date) {
     required DateTime date,
     required VoidCallback onPressed,
   }) {
-    return Row(
-      children: [
-
-        SizedBox(
-          width: 150,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final field = InkWell(
+          onTap: onPressed,
+          child: InputDecorator(
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              suffixIcon: Icon(Icons.calendar_today, size: 20),
             ),
+            child: Text(formatDate(date)),
           ),
-        ),
-
-        Expanded(
-          child: InkWell(
-            onTap: onPressed,
-            child: InputDecorator(
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                suffixIcon:
-                    Icon(Icons.calendar_today),
+        );
+        if (constraints.maxWidth < 600) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               ),
-
-              child: Text(
-                formatDate(date),
-              ),
-            ),
-          ),
-        ),
-      ],
+              field,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            SizedBox(width: 150, child: Text(label, style: const TextStyle(fontSize: 16))),
+            Expanded(child: field),
+          ],
+        );
+      },
     );
   }
 
@@ -1635,13 +1708,9 @@ String formatApiDate(DateTime date) {
         child: InputDecorator(
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
-            suffixIcon:
-                Icon(Icons.calendar_today),
+            suffixIcon: Icon(Icons.calendar_today),
           ),
-
-          child: Text(
-            formatDate(date),
-          ),
+          child: Text(formatDate(date)),
         ),
       ),
     );
@@ -1652,29 +1721,36 @@ String formatApiDate(DateTime date) {
     required TextEditingController controller,
     TextInputType? keyboardType,
   }) {
-    return Row(
-      children: [
-
-        SizedBox(
-          width: 120,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final field = TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: label.toLowerCase().startsWith('description') ? 3 : 1,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(),
+            hintText: label.toLowerCase().startsWith('description') ? 'Enter description' : null,
           ),
-        ),
-
-        Expanded(
-          child: TextField(
-            controller: controller,
-            keyboardType: keyboardType,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ),
-      ],
+        );
+        if (constraints.maxWidth < 600) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ),
+              field,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            SizedBox(width: 120, child: Text(label, style: const TextStyle(fontSize: 16))),
+            Expanded(child: field),
+          ],
+        );
+      },
     );
   }
 
@@ -1684,35 +1760,38 @@ String formatApiDate(DateTime date) {
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
-    return Row(
-      children: [
-
-        SizedBox(
-          width: 150,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-            ),
-          ),
-        ),
-
-        Expanded(
-          child: DropdownButtonFormField<String>(
-            value: value,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-            ),
-            items: items.map((item) {
-              return DropdownMenuItem<String>(
-                value: item,
-                child: Text(item),
-              );
-            }).toList(),
-            onChanged: onChanged,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final field = DropdownButtonFormField<String>(
+          value: value,
+          isExpanded: true,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+          items: items.map((item) => DropdownMenuItem<String>(
+            value: item,
+            child: Text(item, overflow: TextOverflow.ellipsis),
+          )).toList(),
+          onChanged: onChanged,
+        );
+        if (constraints.maxWidth < 600) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ),
+              field,
+            ],
+          );
+        }
+        return Row(
+          children: [
+            SizedBox(width: 150, child: Text(label, style: const TextStyle(fontSize: 16))),
+            Expanded(child: field),
+          ],
+        );
+      },
     );
   }
+
 }
