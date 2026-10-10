@@ -2,15 +2,79 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:file_saver/file_saver.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:flutter/foundation.dart';
 
 const String apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
   defaultValue: 'https://daytoday-5d2d.onrender.com',
 );
 
-void main() {
+final FlutterLocalNotificationsPlugin backupNotifications =
+    FlutterLocalNotificationsPlugin();
+
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb) {
+    const androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    const initializationSettings = InitializationSettings(
+      android: androidSettings,
+    );
+
+    await backupNotifications.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse:
+          (NotificationResponse response) async {
+        final fileUri = response.payload;
+
+        if (fileUri != null && fileUri.isNotEmpty) {
+          final result = await OpenFilex.open(fileUri);
+          debugPrint('Open backup result: ${result.message}');
+        }
+      },
+    );
+
+    final androidPlugin = backupNotifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidPlugin?.requestNotificationsPermission();
+  }
+
   runApp(const MyApp());
 }
+
+
+Future<void> showBackupNotification(String fileUri) async {
+  if (kIsWeb) return;
+
+  const androidDetails = AndroidNotificationDetails(
+    'daytoday_backup_channel',
+    'Excel Backups',
+    channelDescription: 'Notifications for completed Excel backups',
+    importance: Importance.high,
+    priority: Priority.high,
+    icon: '@mipmap/ic_launcher',
+  );
+
+  const notificationDetails = NotificationDetails(
+    android: androidDetails,
+  );
+
+  await backupNotifications.show(
+    id: 1001,
+    title: 'Excel backup downloaded',
+    body: 'Tap here to open your transaction spreadsheet.',
+    notificationDetails: notificationDetails,
+    payload: fileUri,
+  );
+}
+
 
 // --------------------------------------------------
 // APP
@@ -870,7 +934,6 @@ DataRow(
     );
   }
 
-
 Future<void> exportTransactionsToExcel() async {
   try {
     final response = await http.get(
@@ -883,7 +946,7 @@ Future<void> exportTransactionsToExcel() async {
       );
     }
 
-    // Read the filename supplied by FastAPI.
+    // Use the filename supplied by the backend when available.
     final contentDisposition =
         response.headers['content-disposition'];
 
@@ -895,10 +958,16 @@ Future<void> exportTransactionsToExcel() async {
           ).firstMatch(contentDisposition);
 
     final filename = filenameMatch?.group(1) ??
-        'Transactions_backup_till_${DateTime.now().toLocal().toString().replaceAll(':', '-').replaceAll(' ', '_').split('.').first}';
+        'Transactions_backup_${DateTime.now().toLocal().toString().replaceAll(':', '-').replaceAll(' ', '_').split('.').first}';
 
-    final savedPath = await FileSaver.instance.saveFile(
-      name: filename.replaceAll(RegExp(r'\.xlsx$', caseSensitive: false), ''),
+    final baseName = filename.replaceAll(
+      RegExp(r'\.xlsx$', caseSensitive: false),
+      '',
+    );
+
+    // Save to the phone's shared Downloads folder.
+    final savedUri = await FileSaver.instance.saveToDownloads(
+      name: baseName,
       bytes: response.bodyBytes,
       fileExtension: 'xlsx',
       mimeType: MimeType.microsoftExcel,
@@ -906,13 +975,20 @@ Future<void> exportTransactionsToExcel() async {
 
     if (!mounted) return;
 
+    // Show a notification only after saving has completed.
+if (savedUri != null && savedUri.isNotEmpty) {
+  await showBackupNotification(savedUri);
+}
+
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        duration: const Duration(seconds: 6),
+        duration: const Duration(seconds: 5),
         content: Text(
-          savedPath != null && savedPath.isNotEmpty
-              ? 'Excel backup saved: $savedPath'
-              : 'Backup request completed. Check Downloads or the save location selected by Android.',
+          savedUri != null && savedUri.isNotEmpty
+              ? 'Excel backup downloaded: $filename'
+              : 'Backup completed, but the saved file location could not be confirmed.',
         ),
       ),
     );
