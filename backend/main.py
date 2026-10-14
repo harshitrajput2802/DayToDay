@@ -1,11 +1,15 @@
+import os
+import secrets
 from datetime import date, datetime
 from io import BytesIO
+from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, Query, HTTPException
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import APIKeyHeader
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db
@@ -13,7 +17,23 @@ from models import Transaction
 from schemas import TransactionCreate, TransactionResponse
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
+
+IST = ZoneInfo("Asia/Kolkata")
+
+# --------------------------------------------------
+# API KEY AUTH
+# --------------------------------------------------
+
+API_KEY = os.environ["API_KEY"]  # set in Render's environment variables
+api_key_header = APIKeyHeader(name="X-API-Key")
+
+
+def require_key(key: str = Security(api_key_header)):
+    if not secrets.compare_digest(key, API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
 
 # --------------------------------------------------
 # CREATE DATABASE TABLES
@@ -31,6 +51,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# Every data route lives on this router, so it requires the API key.
+# "/" and "/api/health" stay on `app` and remain public for Render's health check.
+api = APIRouter(dependencies=[Depends(require_key)])
+
 
 # --------------------------------------------------
 # CORS
@@ -40,36 +64,34 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://daytwoday.netlify.app",
+        # "http://localhost:3000",  # uncomment for local frontend testing
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
 # --------------------------------------------------
-# HEALTH CHECK
+# HEALTH CHECK (public)
 # --------------------------------------------------
 
 @app.get("/")
 def home():
-    return {
-        "message": "Hello Welcome"
-    }
+    return {"message": "Hello Welcome"}
 
 
 @app.get("/api/health")
 def health():
-    return {
-        "status": "ok"
-    }
+    return {"status": "ok"}
 
 
 # --------------------------------------------------
 # CREATE TRANSACTION
 # --------------------------------------------------
 
-@app.post(
+@api.post(
     "/transactions",
     response_model=TransactionResponse,
 )
@@ -99,7 +121,7 @@ def create_transaction(
 # GET ALL TRANSACTIONS
 # --------------------------------------------------
 
-@app.get(
+@api.get(
     "/transactions",
     response_model=list[TransactionResponse],
 )
@@ -107,24 +129,22 @@ def get_transactions(
     db: Session = Depends(get_db),
 ):
     statement = (
-    select(Transaction)
-    .where(Transaction.IsDeleted.is_(False))
-    .order_by(
-        Transaction.TranDate.desc(),
-        Transaction.id.desc(),
+        select(Transaction)
+        .where(Transaction.IsDeleted.is_(False))
+        .order_by(
+            Transaction.TranDate.desc(),
+            Transaction.id.desc(),
         )
     )
 
-    transactions = db.scalars(statement).all()
-
-    return transactions
+    return db.scalars(statement).all()
 
 
 # --------------------------------------------------
 # GET TRANSACTIONS BY DATE
 # --------------------------------------------------
 
-@app.get(
+@api.get(
     "/transactions/search",
     response_model=list[TransactionResponse],
 )
@@ -133,26 +153,33 @@ def search_transactions(
     to_date: date = Query(...),
     db: Session = Depends(get_db),
 ):
+    if from_date > to_date:
+        raise HTTPException(
+            status_code=400,
+            detail="from_date cannot be after to_date",
+        )
+
     statement = (
-    select(Transaction)
-    .where(
-        Transaction.IsDeleted.is_(False),
-        Transaction.TranDate >= from_date,
-        Transaction.TranDate <= to_date,
-    )
-    .order_by(
-        Transaction.TranDate.desc(),
-        Transaction.id.desc(),
+        select(Transaction)
+        .where(
+            Transaction.IsDeleted.is_(False),
+            Transaction.TranDate >= from_date,
+            Transaction.TranDate <= to_date,
+        )
+        .order_by(
+            Transaction.TranDate.desc(),
+            Transaction.id.desc(),
         )
     )
 
-    transactions = db.scalars(statement).all()
-
-    return transactions
+    return db.scalars(statement).all()
 
 
+# --------------------------------------------------
+# SUMMARY (totals calculated in the database)
+# --------------------------------------------------
 
-@app.get("/transactions/summary")
+@api.get("/transactions/summary")
 def transaction_summary(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
@@ -171,47 +198,51 @@ def transaction_summary(
     if to_date:
         conditions.append(Transaction.TranDate <= to_date)
 
-    statement = select(Transaction).where(*conditions)
-    records = db.scalars(statement).all()
+    type_norm = func.lower(func.trim(Transaction.Type))
 
-    total_income = sum(
-        float(record.Amount or 0)
-        for record in records
-        if (record.Type or "").strip().lower() == "income"
-    )
-    total_expenses = sum(
-        float(record.Amount or 0)
-        for record in records
-        if (record.Type or "").strip().lower() == "expense"
-    )
+    statement = select(
+        func.count(Transaction.id),
+        func.coalesce(
+            func.sum(case((type_norm == "income", Transaction.Amount), else_=0)),
+            0,
+        ),
+        func.coalesce(
+            func.sum(case((type_norm == "expense", Transaction.Amount), else_=0)),
+            0,
+        ),
+    ).where(*conditions)
+
+    count, income, expenses = db.execute(statement).one()
+    total_income = float(income)
+    total_expenses = float(expenses)
 
     return {
         "from_date": from_date.isoformat() if from_date else None,
         "to_date": to_date.isoformat() if to_date else None,
-        "transaction_count": len(records),
+        "transaction_count": count,
         "total_income": round(total_income, 2),
         "total_expenses": round(total_expenses, 2),
         "net_balance": round(total_income - total_expenses, 2),
     }
 
 
-@app.get("/transactions/export")
-def export_transactions(db: Session = Depends(get_db)):
-    # Fetch ALL transactions, regardless of the UI date filter.
-    statement = select(Transaction).order_by(
-        Transaction.TranDate.desc(),
-        Transaction.id.desc(),
-    )
-    transactions = db.scalars(statement).all()
+# --------------------------------------------------
+# EXPORT TO EXCEL
+# --------------------------------------------------
 
-    
-    # Calculate running balance in chronological order.
-    # Soft-deleted transactions do not affect the balance.
+@api.get("/transactions/export")
+def export_transactions(db: Session = Depends(get_db)):
+    # Fetch ALL transactions (including soft-deleted), regardless of any UI filter.
+    transactions = db.scalars(select(Transaction)).all()
+
+    # Oldest first, so the export matches the Flutter app's backup order.
     chronological_transactions = sorted(
         transactions,
         key=lambda t: (t.TranDate, t.id),
     )
 
+    # Running balance in chronological order.
+    # Soft-deleted transactions do not affect the balance.
     running_balance = 0.0
     balance_by_id = {}
 
@@ -251,14 +282,16 @@ def export_transactions(db: Session = Depends(get_db)):
     # Format the header row.
     for cell in worksheet[1]:
         cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill(
-            fill_type="solid",
-            fgColor="1565C0",
-        )
+        cell.fill = PatternFill(fill_type="solid", fgColor="1565C0")
         cell.alignment = Alignment(horizontal="center")
 
     # Add all database records.
-    for transaction in transactions:
+    for transaction in chronological_transactions:
+        # openpyxl cannot write timezone-aware datetimes.
+        created = transaction.CreationDate
+        if isinstance(created, datetime) and created.tzinfo is not None:
+            created = created.astimezone(IST).replace(tzinfo=None)
+
         worksheet.append([
             transaction.id,
             transaction.TranDate,
@@ -269,18 +302,15 @@ def export_transactions(db: Session = Depends(get_db)):
             transaction.Remarks,
             transaction.Other,
             transaction.CategoryName,
-            transaction.CreationDate,
+            created,
             bool(transaction.IsDeleted),
             balance_by_id[transaction.id],
         ])
 
-    # Improve column widths.
+    # Column widths.
     widths = [12, 15, 32, 15, 15, 15, 25, 25, 20, 23, 15, 16]
-
     for index, width in enumerate(widths, start=1):
-        worksheet.column_dimensions[
-            worksheet.cell(row=1, column=index).column_letter
-        ].width = width
+        worksheet.column_dimensions[get_column_letter(index)].width = width
 
     worksheet.freeze_panes = "A2"
     worksheet.auto_filter.ref = worksheet.dimensions
@@ -290,10 +320,10 @@ def export_transactions(db: Session = Depends(get_db)):
     workbook.save(output)
     output.seek(0)
 
-    # Create a backup filename with a timestamp.
+    # Backup filename with an IST timestamp.
     backup_filename = (
         f"Transactions_backup_till_"
-        f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
+        f"{datetime.now(IST).strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
     )
 
     return StreamingResponse(
@@ -303,12 +333,17 @@ def export_transactions(db: Session = Depends(get_db)):
             "spreadsheetml.sheet"
         ),
         headers={
-            "Content-Disposition":
-                f'attachment; filename="{backup_filename}"'
+            "Content-Disposition": f'attachment; filename="{backup_filename}"'
         },
     )
 
-@app.put(
+
+# --------------------------------------------------
+# UPDATE TRANSACTION
+# (keep {transaction_id} routes AFTER search/summary/export)
+# --------------------------------------------------
+
+@api.put(
     "/transactions/{transaction_id}",
     response_model=TransactionResponse,
 )
@@ -341,7 +376,11 @@ def update_transaction(
     return existing_transaction
 
 
-@app.delete("/transactions/{transaction_id}")
+# --------------------------------------------------
+# SOFT DELETE
+# --------------------------------------------------
+
+@api.delete("/transactions/{transaction_id}")
 def soft_delete_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
@@ -361,3 +400,7 @@ def soft_delete_transaction(
         "message": "Transaction moved to deleted records",
         "id": transaction.id,
     }
+
+
+# Register the protected routes (must come after all @api routes are defined).
+app.include_router(api)
