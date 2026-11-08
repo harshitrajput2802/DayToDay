@@ -1,0 +1,121 @@
+# ==================================================
+# Day To Day - root .gitignore (DAYTODAY/.gitignore)
+# ==================================================
+
+# --------------------------------------------------
+# Python / FastAPI backend
+# --------------------------------------------------
+.venv/
+venv/
+backend/venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local database files (contain personal transactions)
+*.db
+*.sqlite
+*.sqlite3
+backend/DayToDay.db
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# --------------------------------------------------
+# Flutter / Dart frontend
+# --------------------------------------------------
+frontend/.dart_tool/
+frontend/.packages
+frontend/.pub-cache/
+frontend/.pub/
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.fvm/
+frontend/coverage/
+frontend/*.iml
+frontend/devtools_options.yaml
+
+# Android
+frontend/android/.gradle/
+frontend/android/.kotlin/
+frontend/android/local.properties
+frontend/android/captures/
+frontend/android/gradlew.bat.bak
+frontend/android/app/debug/
+frontend/android/app/profile/
+frontend/android/app/release/
+frontend/android/*.iml
+frontend/android/GeneratedPluginRegistrant.java
+frontend/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
+# Release signing keys - never commit these
+**/key.properties
+*.jks
+*.keystore
+
+# iOS / macOS
+frontend/ios/Flutter/ephemeral/
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/flutter_export_environment.sh
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/ios/**/xcuserdata/
+frontend/macos/Flutter/ephemeral/
+frontend/macos/Pods/
+frontend/macos/**/xcuserdata/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.pbxuser
+DerivedData/
+
+# Linux / Windows desktop
+frontend/linux/flutter/ephemeral/
+frontend/windows/flutter/ephemeral/
+
+# Web
+frontend/web/.dart_tool/
+
+# --------------------------------------------------
+# IDEs and editors
+# --------------------------------------------------
+.idea/
+frontend/.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# --------------------------------------------------
+# Operating system files
+# --------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# --------------------------------------------------
+# Logs and temporary files
+# --------------------------------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+
+# --------------------------------------------------
+# Build outputs and backups
+# --------------------------------------------------
+*.apk
+*.aab
+*.ipa
+Transactions_backup_*.xlsx
