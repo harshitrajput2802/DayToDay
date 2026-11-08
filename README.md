@@ -89,7 +89,7 @@ flutter doctor
 ### 1. Get the code
 
 ```bash
-git clone <your-repository-url>
+git clone <https://github.com/harshitrajput2802/DayToDay.git>
 cd DAYTODAY
 ```
 
@@ -233,4 +233,4 @@ Excel copy.
 
 ## License
 
-Add your license here.
+No actions permitted without permission.
